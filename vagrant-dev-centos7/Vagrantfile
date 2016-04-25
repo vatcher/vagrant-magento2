@@ -26,9 +26,9 @@ Vagrant.configure(2) do |config|
   config.vm.network "private_network", ip: vagrantConfig['ip']
 
   ## Mount local "./shared/" patho into box´s "/vagrant-box-shared" path
-  # config.vm.synced_folder ".", "/vagrant", type: "nfs", disabled: true
   config.vm.synced_folder ".", "/home/vagrant/sync", disabled: true
-  config.vm.synced_folder vagrantConfig['synced_folder']['host_path'], vagrantConfig['synced_folder']['guest_path'], owner:"vagrant"#, group: "apache", mount_options:['dmode=775', 'fmode=664']
+  config.vm.synced_folder "./scripts", "/home/vagrant/scripts", type: "nfs"
+  config.vm.synced_folder vagrantConfig['synced_folder']['host_path'], vagrantConfig['synced_folder']['guest_path'], owner:"vagrant", mount_options:['dmode=770', 'fmode=660'], type: "nfs"
 
   # Provider-specific configuration
   config.vm.provider "virtualbox" do |vb|
@@ -37,97 +37,59 @@ Vagrant.configure(2) do |config|
     vb.memory = "4096"
   end
 
-  # Enable provisioning with a shell script. Additional provisioners such as
-  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
-  # documentation for more information about their specific syntax and use.
-  # config.vm.provision "shell", inline: <<-SHELL
-  #   sudo apt-get update
-  #   sudo apt-get install -y apache2
-  # SHELL
+  # # update
+  # config.vm.provision "shell", path: "./scripts/01_init_system.sh", args: vagrantConfig['magento']['timezone']
   #
+  # # PHP
+  # # PHP 7 -> php version 7.0.5 is not working with magento2
+  # # config.vm.provision "shell", path: "./scrips/02_install_php_7_0.sh", args: vagrantConfig['magento']['timezone']
+  # # PHP 5.6
+  # config.vm.provision "shell", path: "./scripts/02_install_php_5_6.sh", args: vagrantConfig['magento']['timezone']
+  #
+  # # MySQL 5.6
+  # config.vm.provision "shell", path: "./scripts/03_install_mysql56.sh", args: "#{vagrantConfig['mysql']['password']}"
+  #
+  # # apache
+  # config.vm.provision "shell", path: "./scripts/04_install_apache2.sh"
+  #
+  # # magento2
+  #
+  # # set memeory limit for development
+  # config.vm.provision "shell", inline: "sudo sed -i \"s|memory_limit =.*|memory_limit = 2G|\" /etc/php.ini"
+  #
+  # # init magento2 with composer in html folder
+  # config.vm.provision "shell", path: "./scripts/05_init_composer.sh",
+  #                     args: [vagrantConfig['http_basic']['repo_magento_com']['username'],
+  #                            vagrantConfig['http_basic']['repo_magento_com']['password'],
+  #                            vagrantConfig['github_oauth']['github_com']]
+  #
+  # # clear and link html folder
+  # config.vm.provision "shell", inline: "rm -r /var/www/html"
+  # config.vm.provision "shell", inline: "sudo ln -s #{vagrantConfig['synced_folder']['guest_path']} /var/www/html"
+  #
+  # # Set file system ownership and permissions
+  # config.vm.provision "shell", inline: "sudo chown -R :apache #{vagrantConfig['synced_folder']['guest_path']}"
+  #
+  # # create project and set read/write permissions
+  # config.vm.provision "shell", inline: "/usr/local/bin/composer create-project --repository-url=https://repo.magento.com/ magento/project-community-edition /var/www/html/"
+  # # config.vm.provision "shell", inline: "sudo find #{vagrantConfig['synced_folder']['guest_path']} -type d -exec chmod 770 {} \\; && sudo find #{vagrantConfig['synced_folder']['guest_path']} -type f -exec chmod 660 {} \\; && sudo chmod u+x /var/www/html/bin/magento"
 
-  # update
-  config.vm.provision "shell", inline: "sudo yum -y update"
+  # install magento 2
+  config.vm.provision "shell", path: "./scripts/06_install_magento.sh",
+                      args: [vagrantConfig['mysql']['username'],
+                             vagrantConfig['mysql']['password'],
+                             vagrantConfig['mysql']['host'],
+                             vagrantConfig['magento']['db_name'],
+                             vagrantConfig['magento']['base_url'],
+                             vagrantConfig['magento']['admin_firstname'],
+                             vagrantConfig['magento']['admin_lastname'],
+                             vagrantConfig['magento']['admin_email'],
+                             vagrantConfig['magento']['admin_user'], vagrantConfig['magento']['admin_password'],
+                             vagrantConfig['magento']['backend_frontname'], vagrantConfig['magento']['language'], vagrantConfig['magento']['currency'], vagrantConfig['magento']['timezone'],
+                             vagrantConfig['magento']['fixture']
+                      ]
 
-  # disbale selinux
-  config.vm.provision "shell", inline: "sudo sed -i 's/enforcing/disabled/g' /etc/selinux/config /etc/selinux/config"
-
-  # set system timezone
-  config.vm.provision "shell", inline: "sudo timedatectl set-timezone #{vagrantConfig['magento']['timezone']}"
-
-  # Install Command Line Web Browser
-  config.vm.provision "shell", inline: "sudo yum -y install links wget"
-
-  # PHP
-  config.vm.provision "shell", inline: "sudo yum -y install epel-release"
-  config.vm.provision "shell", inline: "sudo yum -y install http://dl.iuscommunity.org/pub/ius/stable/CentOS/7/x86_64/ius-release-1.0-14.ius.centos7.noarch.rpm"
-  config.vm.provision "shell", inline: "sudo yum -y update"
-  # PHP 7 -> php version 7.0.5 is not working with magento2
-  # config.vm.provision "shell", inline: "sudo yum -y install php70u php70u-pdo php70u-mysqlnd php70u-opcache php70u-xml php70u-mcrypt php70u-gd php70u-devel php70u-mysql php70u-intl php70u-mbstring php70u-json php70u-iconv"
-  # PHP 5.6
-  config.vm.provision "shell", inline: "sudo yum -y install php56u php56u-pdo php56u-mysqlnd php56u-opcache php56u-xml php56u-mcrypt php56u-gd php56u-devel php56u-mysql php56u-intl php56u-mbstring php56u-json php56u-iconv"
-  # show version and set timezone
-  config.vm.provision "shell", inline: "php -v"
-  config.vm.provision "shell", inline: "sudo sed -i \"s|;date.timezone =.*|date.timezone = \\\"#{vagrantConfig['magento']['timezone']}\\\"|\" /etc/php.ini"
-
-  # MySQL 5.6 --> use mariadb instead
-  config.vm.provision "shell", inline: "sudo wget http://repo.mysql.com/mysql-community-release-el6-5.noarch.rpm && sudo rpm -ivh mysql-community-release-el6-5.noarch.rpm"
-  config.vm.provision "shell", inline: "sudo yum -y install mysql-server"
-  config.vm.provision "shell", inline: "sudo systemctl start mysqld.service"
-  config.vm.provision "shell", inline: "sudo systemctl enable mysqld.service"
-
-  # config.vm.provision "shell", inline: "sudo yum -y install mariadb-server mariadb"
-  # config.vm.provision "shell", inline: "sudo systemctl start mysqld.socket"
-  # config.vm.provision "shell", inline: "sudo systemctl enable mysqld.socket"
-  config.vm.provision "shell", path: "./scripts/mysqldb_config.sh", args: "#{vagrantConfig['mysql']['password']}"
-
-  # apache
-  config.vm.provision "shell", inline: "sudo yum install httpd"
-  config.vm.provision "shell", inline: "httpd -v"
-  config.vm.provision "shell", inline: "sudo systemctl start httpd.service"
-  config.vm.provision "shell", inline: "sudo systemctl enable httpd.service"
-  config.vm.provision "shell", inline: "awk '/<Directory \\/var\\/www\\/html\\/>/,/AllowOverride None/{sub(\"None\", \"All\",$0)}{print}' /etc/httpd/conf/httpd.conf > /tmp/tmp.httpd.conf"
-  config.vm.provision "shell", inline: "sudo mv /tmp/tmp.httpd.conf /etc/httpd/conf/httpd.conf"
-  # config.vm.provision "shell", inline: "sudo systemctl stop httpd.service"
-  config.vm.provision "shell", inline: "sudo usermod -g apache vagrant"
-  # config.vm.provision "shell", inline: "sudo systemctl start httpd.service"
-
-  # magento2
-
-  # set memeory limit for development
-  config.vm.provision "shell", inline: "sudo sed -i \"s|memory_limit =.*|memory_limit = 2G|\" /etc/php.ini"
-
-  # init magento2 with composer in html folder
-  config.vm.provision "shell", inline: "curl -sS https://getcomposer.org/installer | php"
-  config.vm.provision "shell", inline: "mv composer.phar /usr/local/bin/composer"
-  config.vm.provision "shell", inline: "/usr/local/bin/composer -V"
-  config.vm.provision "shell", inline: "/usr/local/bin/composer clearcache"
-  config.vm.provision "shell", inline: "sudo rm -f /root/.composer/auth.json"
-  # config.vm.provision "shell", inline: "echo '{\"http-basic\": {\"repo.magento.com\": {\"username\": \"#{vagrantConfig['http_basic']['repo_magento_com']['username']}\",\"password\": \"#{vagrantConfig['http_basic']['repo_magento_com']['password']}\"}}}' >> /root/.composer/auth.json"
-  config.vm.provision "shell", inline: "echo '{\"http-basic\": {\"repo.magento.com\": {\"username\": \"#{vagrantConfig['http_basic']['repo_magento_com']['username']}\",\"password\": \"#{vagrantConfig['http_basic']['repo_magento_com']['password']}\"}}, \"github-oauth\": {\"github.com\":\"#{vagrantConfig['github_oauth']['github_com']}\"}}' >> /root/.composer/auth.json"
-
-  # clear and link html folder
-  config.vm.provision "shell", inline: "rm -r /var/www/html"
-  config.vm.provision "shell", inline: "sudo ln -s #{vagrantConfig['synced_folder']['guest_path']} /var/www/html"
   # add phpifo for dev
   config.vm.provision "shell", inline: "echo -e \"<?php\nphpinfo();\n?>\"  > /var/www/html/phpinfo.php"
-  # Set file system ownership and permissions
-  config.vm.provision "shell", inline: "sudo chown -R :apache #{vagrantConfig['synced_folder']['guest_path']}"
-
-  # create project
-  config.vm.provision "shell", inline: "/usr/local/bin/composer create-project --repository-url=https://repo.magento.com/ magento/project-community-edition /var/www/html/"
-  config.vm.provision "shell", inline: "sudo find #{vagrantConfig['synced_folder']['guest_path']} -type d -exec chmod 770 {} \\; && sudo find #{vagrantConfig['synced_folder']['guest_path']} -type f -exec chmod 660 {} \\; && sudo chmod u+x /var/www/html/bin/magento"
-
-  # create a database in which Magento will be installed later on
-  config.vm.provision "shell", inline: "sudo mysql --user=#{vagrantConfig['mysql']['username']} --password=#{vagrantConfig['mysql']['password']} -e \"CREATE DATABASE #{vagrantConfig['magento']['db_name']};\""
-
-  # run the Magento installation from the command line
-  config.vm.provision "shell", inline: "php /var/www/html/bin/magento setup:install --base-url=\"#{vagrantConfig['magento']['base_url']}\" --db-host=\"#{vagrantConfig['mysql']['host']}\" --db-user=\"#{vagrantConfig['mysql']['username']}\" --db-password=\"#{vagrantConfig['mysql']['password']}\" --db-name=\"#{vagrantConfig['magento']['db_name']}\" --admin-firstname=\"#{vagrantConfig['magento']['admin_firstname']}\" --admin-lastname=\"#{vagrantConfig['magento']['admin_lastname']}\" --admin-email=\"#{vagrantConfig['magento']['admin_email']}\" --admin-user=\"#{vagrantConfig['magento']['admin_user']}\" --admin-password=\"#{vagrantConfig['magento']['admin_password']}\" --backend-frontname=\"#{vagrantConfig['magento']['backend_frontname']}\" --language=\"#{vagrantConfig['magento']['language']}\" --currency=\"#{vagrantConfig['magento']['currency']}\" --timezone=\"#{vagrantConfig['magento']['timezone']}\""
-
-  config.vm.provision "shell", inline: "php /var/www/html/bin/magento deploy:mode:set developer"
-  config.vm.provision "shell", inline: "php /var/www/html/bin/magento cache:disable"
-  config.vm.provision "shell", inline: "php /var/www/html/bin/magento cache:flush"
-  config.vm.provision "shell", inline: "php /var/www/html/bin/magento setup:performance:generate-fixtures /var/www/html/setup/performance-toolkit/profiles/ce/#{vagrantConfig['magento']['fixture']}.xml"
-  config.vm.provision "shell", inline: "php /var/www/html/bin/magento setup:static-content:deploy"
 
 end

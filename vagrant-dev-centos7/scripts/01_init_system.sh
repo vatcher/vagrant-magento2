@@ -11,3 +11,8 @@ sudo timedatectl set-timezone $1
 
 # Install tools [Command Line Web Browser, wget]
 sudo yum -y install links wget
+
+# add Extra Packages for Enterprise Linux
+sudo yum -y install epel-release
+sudo yum -y install http://dl.iuscommunity.org/pub/ius/stable/CentOS/7/x86_64/ius-release-1.0-14.ius.centos7.noarch.rpm
+sudo yum -y update
