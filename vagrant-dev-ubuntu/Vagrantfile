@@ -1,0 +1,100 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+require 'yaml'
+vagrantConfig = YAML.load_file 'Vagrantfile.config.yml'
+
+# Config
+Vagrant.configure(2) do |config|
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://atlas.hashicorp.com/search.
+  config.vm.box = "larryli/vivid64"
+
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  config.vm.box_check_update = false
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # config.vm.network "forwarded_port", guest: 80, host: 8080
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  config.vm.network "private_network", ip: vagrantConfig['ip']
+
+  ## Mount local "./shared/" patho into box´s "/vagrant-box-shared" path
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.synced_folder vagrantConfig['synced_folder']['host_path'], vagrantConfig['synced_folder']['guest_path'], owner:"vagrant", group: "www-data", mount_options:['dmode=775', 'fmode=664']
+
+  # Provider-specific configuration
+  config.vm.provider "virtualbox" do |vb|
+    vb.gui = false
+    vb.cpus = 2
+    vb.memory = "2048"
+  end
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+  # config.vm.provision "shell", inline: <<-SHELL
+  #   sudo apt-get update
+  #   sudo apt-get install -y apache2
+  # SHELL
+
+  # config.vm.provision "file", source: "~/.gitconfig", destination: ".gitconfig"
+  config.vm.provision "shell", inline: "sudo apt-get update"
+
+  # PHP 5.6.x (or even latest PHP 5.x version)
+  config.vm.provision "shell", inline: "sudo apt-get -y install php5 php5-dev php5-curl php5-imagick php5-gd php5-mcrypt php5-mhash php5-mysql php5-xdebug php5-intl php5-xsl"
+  config.vm.provision "shell", inline: "sudo php5enmod mcrypt"
+  # not needed for php 7 with xdebug > 2.3
+  config.vm.provision "shell", inline: "sudo echo \"xdebug.max_nesting_level=200\" >> /etc/php5/mods-available/xdebug.ini"
+  config.vm.provision "shell", inline: "sudo apt-get -y install phpunit"
+
+  # MySQL 5.6
+  config.vm.provision "shell", inline: "sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password password #{vagrantConfig['mysql']['password']}'"
+  config.vm.provision "shell", inline: "sudo debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password #{vagrantConfig['mysql']['password']}'"
+  config.vm.provision "shell", inline: "sudo apt-get -y install mysql-server"
+  config.vm.provision "shell", inline: "sudo service mysql start"
+  config.vm.provision "shell", inline: "sudo update-rc.d mysql defaults"
+
+  # apache
+  config.vm.provision "shell", inline: "sudo apt-get -y install apache2"
+  config.vm.provision "shell", inline: "sudo update-rc.d apache2 defaults"
+  config.vm.provision "shell", inline: "sudo service apache2 start"
+  config.vm.provision "shell", inline: "sudo a2enmod rewrite"
+  config.vm.provision "shell", inline: "sudo awk '/<Directory \\/>/,/AllowOverride None/{sub(\"None\", \"All\",$0)}{print}' /etc/apache2/apache2.conf > /tmp/tmp.apache2.conf"
+  config.vm.provision "shell", inline: "sudo mv /tmp/tmp.apache2.conf /etc/apache2/apache2.conf"
+  config.vm.provision "shell", inline: "sudo awk '/<Directory \\/var\\/www\\/>/,/AllowOverride None/{sub(\"None\", \"All\",$0)}{print}' /etc/apache2/apache2.conf > /tmp/tmp.apache2.conf"
+  config.vm.provision "shell", inline: "sudo mv /tmp/tmp.apache2.conf /etc/apache2/apache2.conf"
+  config.vm.provision "shell", inline: "sudo service apache2 stop"
+
+  # magento2
+
+  # init magento2 with composer in html folder
+  config.vm.provision "shell", inline: "curl -sS https://getcomposer.org/installer | php"
+  config.vm.provision "shell", inline: "mv composer.phar /usr/local/bin/composer"
+  config.vm.provision "shell", inline: "composer clearcache"
+  config.vm.provision "shell", inline: "sudo rm -f /root/.composer/auth.json"
+  config.vm.provision "shell", inline: "echo '{\"http-basic\": {\"repo.magento.com\": {\"username\": \"#{vagrantConfig['http_basic']['repo_magento_com']['username']}\",\"password\": \"#{vagrantConfig['http_basic']['repo_magento_com']['password']}\"}}}' >> /root/.composer/auth.json"
+  # clear and link html folder
+  config.vm.provision "shell", inline: "sudo rm -Rf /var/www/html"
+  config.vm.provision "shell", inline: "sudo ln -s #{vagrantConfig['synced_folder']['guest_path']} /var/www/html"
+  # # create project
+  config.vm.provision "shell", inline: "composer create-project --repository-url=https://repo.magento.com/ magento/project-community-edition /var/www/html/"
+
+  # create a database in which Magento will be installed later on
+  config.vm.provision "shell", inline: "sudo mysql --user=#{vagrantConfig['mysql']['username']} --password=#{vagrantConfig['mysql']['password']} -e \"CREATE DATABASE #{vagrantConfig['magento']['db_name']};\""
+
+  # run the Magento installation from the command line
+  config.vm.provision "shell", inline: "sudo php /var/www/html/bin/magento setup:install --base-url=\"#{vagrantConfig['magento']['base_url']}\" --db-host=\"#{vagrantConfig['mysql']['host']}\" --db-user=\"#{vagrantConfig['mysql']['username']}\" --db-password=\"#{vagrantConfig['mysql']['password']}\" --db-name=\"#{vagrantConfig['magento']['db_name']}\" --admin-firstname=\"#{vagrantConfig['magento']['admin_firstname']}\" --admin-lastname=\"#{vagrantConfig['magento']['admin_lastname']}\" --admin-email=\"#{vagrantConfig['magento']['admin_email']}\" --admin-user=\"#{vagrantConfig['magento']['admin_user']}\" --admin-password=\"#{vagrantConfig['magento']['admin_password']}\" --backend-frontname=\"#{vagrantConfig['magento']['backend_frontname']}\" --language=\"#{vagrantConfig['magento']['language']}\" --currency=\"#{vagrantConfig['magento']['currency']}\" --timezone=\"#{vagrantConfig['magento']['timezone']}\""
+
+  config.vm.provision "shell", inline: "sudo php /var/www/html/bin/magento deploy:mode:set developer"
+  config.vm.provision "shell", inline: "sudo php /var/www/html/bin/magento cache:disable"
+  config.vm.provision "shell", inline: "sudo php /var/www/html/bin/magento cache:flush"
+  config.vm.provision "shell", inline: "sudo php /var/www/html/bin/magento setup:performance:generate-fixtures /var/www/html/setup/performance-toolkit/profiles/ce/small.xml"
+
+end
