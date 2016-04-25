@@ -1,0 +1,27 @@
+ip: 192.168.10.10
+synced_folder:
+  host_path: "./html/"
+  guest_path: "/vagrant/magento2/"
+mysql:
+  host: "127.0.0.1"
+  username: "root"
+  password: "pass123"
+http_basic:
+  repo_magento_com:
+    username: "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    password: "2f61cb7837b83df50a7fffb58e802b87679cdaff"
+github_oauth:
+  github_com: "d79fb920d4m4c2fb9d8798b6ce3a043f0b7c2af6"
+magento:
+  db_name: "magento"
+  admin_firstname: "Heinrich"
+  admin_lastname: "Heine"
+  admin_password: "heinrHeine123"
+  admin_user: "admin"
+  admin_email: "heinrich.heine@dichter.de"
+  backend_frontname: "admin"
+  language: "en_US"
+  currency: "USD"
+  timezone: "Europe/London"
+  base_url: "http://magento.box"
+  fixture: "small"
