@@ -84,8 +84,12 @@ Vagrant.configure(2) do |config|
                              vagrantConfig['magento']['admin_firstname'],
                              vagrantConfig['magento']['admin_lastname'],
                              vagrantConfig['magento']['admin_email'],
-                             vagrantConfig['magento']['admin_user'], vagrantConfig['magento']['admin_password'],
-                             vagrantConfig['magento']['backend_frontname'], vagrantConfig['magento']['language'], vagrantConfig['magento']['currency'], vagrantConfig['magento']['timezone'],
+                             vagrantConfig['magento']['admin_user'],
+                             vagrantConfig['magento']['admin_password'],
+                             vagrantConfig['magento']['backend_frontname'],
+                             vagrantConfig['magento']['language'],
+                             vagrantConfig['magento']['currency'],
+                             vagrantConfig['magento']['timezone'],
                              vagrantConfig['magento']['fixture']
                       ]
 
