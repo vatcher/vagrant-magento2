@@ -11,7 +11,7 @@ sudo setenforce 0
 sudo timedatectl set-timezone $1
 
 # Install tools [Command Line Web Browser, wget]
-sudo yum -y install links wget
+sudo yum -y install links wget vim
 
 # add Extra Packages for Enterprise Linux
 sudo yum -y install epel-release
