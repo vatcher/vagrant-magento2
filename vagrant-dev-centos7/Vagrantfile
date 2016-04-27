@@ -27,7 +27,7 @@ Vagrant.configure(2) do |config|
 
   ## Mount local "./shared/" patho into box´s "/vagrant-box-shared" path
   config.vm.synced_folder ".", "/home/vagrant/sync", disabled: true
-  config.vm.synced_folder "./scripts", "/home/vagrant/scripts", type: "nfs"
+  # config.vm.synced_folder "./scripts", "/home/vagrant/scripts", type: "nfs"
   config.vm.synced_folder vagrantConfig['synced_folder']['host_path'], vagrantConfig['synced_folder']['guest_path'], owner:"vagrant", mount_options:['dmode=770', 'fmode=660'], type: "nfs"
 
   # Provider-specific configuration
@@ -44,25 +44,18 @@ Vagrant.configure(2) do |config|
   # PHP 7 -> php version 7.0.5 is not working with magento2
   # config.vm.provision "shell", path: "./scrips/02_install_php_7_0.sh", args: vagrantConfig['magento']['timezone']
   # PHP 5.6
-  config.vm.provision "shell", path: "./scripts/02_install_php_5_6.sh", args: vagrantConfig['magento']['timezone']
+  config.vm.provision "shell", path: "./scripts/02_install_php_5_6.sh", args: vagrantConfig['magento']['timezone'], privileged: false
 
   # MySQL 5.6
-  config.vm.provision "shell", path: "./scripts/03_install_mysql56.sh", args: "#{vagrantConfig['mysql']['password']}"
+  config.vm.provision "shell", path: "./scripts/03_install_mysql56.sh", args: "#{vagrantConfig['mysql']['password']}", privileged: false
 
   # apache
-  config.vm.provision "shell", path: "./scripts/04_install_apache2.sh"
+  config.vm.provision "shell", path: "./scripts/04_install_apache2.sh", privileged: false
 
   # magento2
 
   # set memeory limit for development
   config.vm.provision "shell", inline: "sudo sed -i \"s|memory_limit =.*|memory_limit = 2G|\" /etc/php.ini"
-
-  # clear and link html folder
-  config.vm.provision "shell", inline: "rm -r /var/www/html"
-  config.vm.provision "shell", inline: "sudo ln -s #{vagrantConfig['synced_folder']['guest_path']} /var/www/html"
-
-  # Set file system ownership and permissions
-  config.vm.provision "shell", inline: "sudo chown -R :apache #{vagrantConfig['synced_folder']['guest_path']}"
 
   # init magento2 with composer in html folder
   config.vm.provision "shell", path: "./scripts/05_init_composer.sh",
@@ -70,9 +63,20 @@ Vagrant.configure(2) do |config|
                              vagrantConfig['http_basic']['repo_magento_com']['password'],
                              vagrantConfig['github_oauth']['github_com']]
 
+  # clear and link html folder
+  config.vm.provision "shell", inline: "sudo rm -r /var/www/html"
+  config.vm.provision "shell", inline: "sudo ln -s #{vagrantConfig['synced_folder']['guest_path']} /var/www/html"
+
+  # Set file system ownership and permissions
+  config.vm.provision "shell", inline: "sudo chown -R :apache /var/www/html"
+  # config.vm.provision "shell", inline: "sudo chown -R :apache /var/www/html"
+
   # create project and set read/write permissions
   config.vm.provision "shell", inline: "/usr/local/bin/composer create-project --repository-url=https://repo.magento.com/ magento/project-community-edition /var/www/html/"
   config.vm.provision "shell", inline: "sudo find #{vagrantConfig['synced_folder']['guest_path']} -type d -exec chmod 770 {} \\; && sudo find #{vagrantConfig['synced_folder']['guest_path']} -type f -exec chmod 660 {} \\; && sudo chmod u+x /var/www/html/bin/magento"
+
+  # add phpifo for dev
+  config.vm.provision "shell", inline: "echo -e \"<?php\nphpinfo();\n?>\"  > /var/www/html/phpinfo.php"
 
   # install magento 2
   config.vm.provision "shell", path: "./scripts/06_install_magento.sh",
@@ -93,7 +97,6 @@ Vagrant.configure(2) do |config|
                              vagrantConfig['magento']['fixture']
                       ]
 
-  # add phpifo for dev
-  config.vm.provision "shell", inline: "echo -e \"<?php\nphpinfo();\n?>\"  > /var/www/html/phpinfo.php"
+  config.vm.provision "shell", inline: "sudo chown -R :apache /var/www/html/"
 
 end

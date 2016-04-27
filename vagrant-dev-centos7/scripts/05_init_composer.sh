@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install composer
 curl -sS https://getcomposer.org/installer | php
-mv composer.phar /usr/local/bin/composer
+sudo mv composer.phar /usr/local/bin/composer
 
 /usr/local/bin/composer -V
 /usr/local/bin/composer clearcache
