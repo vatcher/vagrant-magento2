@@ -27,3 +27,4 @@ php /var/www/html/bin/magento cache:disable
 php /var/www/html/bin/magento cache:flush
 php /var/www/html/bin/magento setup:performance:generate-fixtures /var/www/html/setup/performance-toolkit/profiles/ce/${15}.xml
 #php /var/www/html/bin/magento setup:static-content:deploy
+php /var/www/html/bin/magento setup:static-content:deploy de_DE
